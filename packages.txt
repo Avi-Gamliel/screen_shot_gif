@@ -1,0 +1,7 @@
+PILLOW - PIL
+tk - tkinter
+pywin32 - win32gui
+ctypes
+mss
+threading
+time
