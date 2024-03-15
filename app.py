@@ -7,32 +7,6 @@ import mss.tools
 import threading
 from tkinter.filedialog import asksaveasfile
 
-
-def round_rectangle(canvas, x1, y1, x2, y2, radius=25, **kwargs):
-    points = [x1 + radius, y1,
-              x1 + radius, y1,
-              x2 - radius, y1,
-              x2 - radius, y1,
-              x2, y1,
-              x2, y1 + radius,
-              x2, y1 + radius,
-              x2, y2 - radius,
-              x2, y2 - radius,
-              x2, y2,
-              x2 - radius, y2,
-              x2 - radius, y2,
-              x1 + radius, y2,
-              x1 + radius, y2,
-              x1, y2,
-              x1, y2 - radius,
-              x1, y2 - radius,
-              x1, y1 + radius,
-              x1, y1 + radius,
-              x1, y1]
-
-    return canvas.create_polygon(points, **kwargs, smooth=True)
-
-
 class theme:
     default ="orange"
     hover = "blue"
@@ -44,70 +18,50 @@ class theme:
     active = "blue"
     white = "white"
 
-def create_rounded_rectangle(canvas, x1, y1, x2, y2, radius, **kwargs):
-    points = [x1 + radius, y1,
-              x1 + radius, y1,
-              x2 - radius, y1,
-              x2 - radius, y1,
-              x2, y1,
-              x2, y1 + radius,
-              x2, y1 + radius,
-              x2, y2 - radius,
-              x2, y2 - radius,
-              x2, y2,
-              x2 - radius, y2,
-              x2 - radius, y2,
-              x1 + radius, y2,
-              x1 + radius, y2,
-              x1, y2,
-              x1, y2 - radius,
-              x1, y2 - radius,
-              x1, y1 + radius,
-              x1, y1 + radius,
-              x1, y1]
-    canvas.create_polygon(points, **kwargs, smooth=True)
-
-
-ctypes.windll.user32.SetProcessDPIAware()
-
 global start_record, flag, screen_number
 
+toggle_screens_to_choose = False
+start_time_ref = False
+count_frame_prev = 0
+meduim_screen = 800
+screen_number = 1
 start_record = True
+result_times = []
+images_prev = []
+screens = []
+frames = []
+width = 400
+height = 50
+flag = True
+gap = 20
+start=0
+end = 0
+frame_prev_width = 0
+frame_prev_height = 0
+
+
 im_cursor = Image.open('arrow.png')
+
+ctypes.windll.user32.SetProcessDPIAware()
 master = Tk()
 master.title("avi assistant")
 
-width = 400
-meduim_screen = 800
 full_screen = master.winfo_screenwidth()
-
-height = 50
-flag = True
-frames = []
-screen_number = 1
-screens = []
-
-
-start_time_ref = False
-count_frame_prev = 0
-gap = 20
-
 canvas_width = width - gap
 
-toggle_screens_to_choose = False
+with mss.mss() as sct:
+    screens = sct.monitors[1:]
 
-start, end = 0,0
-
-## create navbar  float
 master.geometry("%dx%d+%d+%d" % (width, height, (master.winfo_screenwidth() / 2) - (width / 2), 0))
 master.configure(bg="#1b1f2a", bd=0)
 master.overrideredirect(True)
+
 master.rowconfigure(0, weight=1)
 master.rowconfigure(1, weight=1)
 master.columnconfigure(0, weight=1)
+
 canvas_bg = Canvas(master, width=width, height=height, bd=0)
 canvas_bg.grid(row=0, column=0,padx=0, pady=0,)
-# create_rounded_rectangle(canvas_bg, 0, 0, width,height, 0, fill="#1b1f2a")
 canvas_bg.create_rectangle(0,0,width,height ,fill="#1b1f2a")
 
 left_frame = Frame(master, width=canvas_width, height = height , bg="#1b1f2a", bd=0 )
@@ -115,15 +69,13 @@ left_frame.grid(row=0, column=0, sticky="nswe")
 left_frame.rowconfigure(0, weight=1)
 left_frame.columnconfigure(0, weight=1)
 left_frame.columnconfigure(1, weight=1)
-
 left_frame.grid_propagate(False)
+
 btn_action_frame = Frame(left_frame, bg="#1b1f2a", bd=0, height = height, width=100 )
 btn_action_frame.grid(row=0, column=0,padx=0,sticky="w", pady=0)
 btn_action_frame.rowconfigure(0, weight=1)
 btn_action_frame.columnconfigure(0, weight=1)
-# btn_action_frame.columnconfigure(1, weight=1)
 btn_action_frame.grid_propagate(False)
-
 
 btn_choose_frame = Frame(left_frame, bg="#1b1f2a", bd=0, height = height, width=150)
 btn_choose_frame.grid(row=0, column=1, sticky="e",padx=0, pady=0)
@@ -131,16 +83,11 @@ btn_choose_frame.rowconfigure(0, weight=1)
 btn_choose_frame.columnconfigure(0, weight=1)
 btn_choose_frame.grid_propagate(False)
 
-frame_prev_width = 0
-frame_prev_height = 0
-
-with mss.mss() as sct:
-    screens = sct.monitors[1:]
-
 def record_screen():
     global start_time
     print("start recording ...")
-    close_toggle_choose_screens()
+    if toggle_screens_to_choose == True:
+        close_toggle_choose_screens()
     count_frame = 0
     while flag:
         im = screen_shot(index=screen_number)
@@ -150,7 +97,6 @@ def record_screen():
         print("ok")
     else:
         play_result()
-
 
 def start_recording():
     global flag
@@ -182,13 +128,10 @@ def screen_shot(index=1):
     image_object.paste(im_cursor, box=(curX, curY), mask=im_cursor)
     return image_object
 
-
 def stop_recording():
     global flag
     flag = False
     init_edit_frame()
-
-
 
 def choose_screen():
     global frame_photo_1
@@ -198,7 +141,6 @@ def choose_screen():
         toggle_screens_to_choose = True
         master.geometry("%dx%d+%d+%d" % (width, height + 150, (master.winfo_screenwidth() / 2) - (width / 2), 1))
         w = 150
-
         frame_photo_1 = Frame(master, width =width, height=150, bg="#1b1f2a")
         frame_photo_1.grid(row=1, column=0)
         images = []
@@ -228,8 +170,6 @@ def close_toggle_choose_screens():
     master.geometry("%dx%d+%d+%d" % (width, height, (master.winfo_screenwidth()/2) - (width/2), 0))
     frame_photo_1.grid_forget()
 
-result_times = []
-
 def turn_px_to_fr(px, frame_len):
     global canvas_width, result_times,pps
     fps = 10
@@ -258,17 +198,14 @@ def turn_fr_to_px(fr, frames_len):
         px = round(px)
     return res
 
-images_prev = []
-
 def play_result():
     global frames, video_out_put_label, images_prev, photo_prev_1, width_prev_1_label
-    ## get the images
-
     start_video_ref()
 
 def init_edit_frame():
-
     global toggle_screens_to_choose, side, frames, video_out_put_label, handle, C,frame_prev_height,frame_prev_width, width
+    if len(frames) == 0 :
+        print(" there is no frame")
     width = meduim_screen
     frame_prev_width = width - 20
     frame_prev_height = int(frames[0].height / (frames[0].width / (width - 20)))
@@ -286,7 +223,6 @@ def init_edit_frame():
     top_frame.grid(row=1, column=0, sticky="nswe", padx=20)
     top_frame.columnconfigure(0, weight=1)
     top_frame.columnconfigure(1, weight=1)
-    # top_frame.columnconfigure(2, weight=1)
     top_frame.rowconfigure(0, weight=1)
     top_frame.grid_propagate(False)
 
@@ -297,9 +233,6 @@ def init_edit_frame():
     button_prev_actions.columnconfigure(1,weight=1)
     button_prev_actions.grid_propagate(False)
 
-    # button_play = Button(button_prev_actions, text="play", command=start_video_btn)
-    # button_play.grid(row=0, column=0)
-    #
     button_play = create_button(button_prev_actions, "play", "play", "gray", "white", "red",start_video_btn)
     button_play.place(relx=0.15, rely=0.5, anchor=W)
     button_play.bind("<Enter>", lambda e, color="red": on_hover(e, color))
@@ -327,26 +260,21 @@ def init_edit_frame():
     bottom_frame.rowconfigure(0, weight=1)
     bottom_frame.grid_propagate(False)
 
-
     video_out_put_label = Label(middle_frame, width=frame_prev_width, height=frame_prev_height, bg="white" )
     video_out_put_label.grid(row=0, column=0)
     video_out_put_label.columnconfigure(1,weight=1)
     video_out_put_label.rowconfigure(1,weight=1)
     video_out_put_label.grid_propagate(False)
 
-
     C = Canvas(bottom_frame, bg="#1b1f2a", width=width-40, height=100, bd=0,  highlightthickness=0)
     C.grid(row=0, column=0, sticky="nswe")
 
     C.create_rectangle(0,30,width - 60, 100, fill="black")
     C.create_rectangle(0,0,width - 60, 20, fill="black")
-    # how much frame in px
-    point = round((width -40) / (len(frames)/ 10))
 
-    print(point, canvas_width)
+    point = round((width -40) / (len(frames)/ 10))
     index = 0
     for _ in range(round(len(frames)/10)):
-
         sec = len(frames) / 10
         time_in_sec = round((point * index) * (sec / (width- 40)))
         print(round(time_in_sec))
@@ -361,7 +289,6 @@ def init_edit_frame():
         C.create_text((point * index) + 5 + (point /2) ,  20/2 ,width=100, fill="#464646",text=preapre_time(time_in_sec))
         index += 1
 
-    # bar  = round_rectangle(C, 50,30,width - 60, 100,50, fill="orange")
     bar = C.create_rectangle(50,30,width - 60, 100, fill="red")
     handle = C.create_rectangle(0,0,5, 100, fill="white")
 
@@ -378,10 +305,8 @@ def init_edit_frame():
         handle_pos = C.coords(handle)
         rs = 0
         if handle_pos[0] < e.x  and handle_pos[2] > e.x:
-            ## move handle
             rs = e.x - handle_pos[0]
             return
-
         if bar_x1 - 10 < e.x and bar_x1 + 10 > e.x:
             side = "start"
         elif bar_x2 -10 < e.x and bar_x2 +10 > e.x:
@@ -400,7 +325,6 @@ def init_edit_frame():
             C.coords(handle, e.x - rs, 0, (e.x - rs) + 10,bar_y2)
             frame_choose = turn_px_to_fr(e.x, len(frames))
             count_frame_prev = int(frame_choose.fr)
-            print("===>>>",count_frame_prev)
             frame_resize = frames[count_frame_prev].resize(
                 (width - 20, int(frames[count_frame_prev].height / (frames[count_frame_prev].width / (width - 20)))))
             photo_prev_1 = ImageTk.PhotoImage(frame_resize)
@@ -477,11 +401,7 @@ def save_file():
         ("All files", "*.")
     )
     filenames = asksaveasfile(filetypes=files, defaultextension="*.gif")
-    # showinfo(title="saved path", message=filenames)
-
-
     our_path = str(filenames.name)
-    print(our_path)
     frames[int(start)].save(
         our_path,
         save_all=True,
@@ -491,20 +411,58 @@ def save_file():
         loop=0)
     print("stop recording ...")
 
-
 def on_hover(event, color):
     event.widget.configure(bg=color)
 
 def on_leave(event,color):
     event.widget.configure(bg=color)
 
-def create_button(widget , type, text, bg, fg, active, command):
+def on_click(event,color):
+    event.widget.configure(bg=color)
 
-    return Button(widget, cursor="hand2",padx=5, command=command ,text=text, font = ("", 10),borderwidth = 2,bd = 0, bg=bg, fg=fg, activeforeground=fg, activebackground=active)
-# create buttons
+images_icons = []
+def create_button(widget , type, text, bg, fg, active, command):
+    global image_icon,images_icons, options
+    image_icon=''
+    options = dict(
+        cursor = "hand2",
+        padx = 4,
+        command = command,
+        font = ("", 10),
+        borderwidth = 2,
+        bd = 0,
+        bg = bg,
+        fg = fg,
+        activeforeground = active,
+        activebackground = active
+    )
+
+    if type == "stop":
+        image_icon = ImageTk.PhotoImage(file="icons/stop_w.png")
+        options["image"]= image_icon
+        options["width"]= 30
+        options["height"]= 30
+        # width = 30,
+        #  = 30,
+    elif type == "start":
+        image_icon = ImageTk.PhotoImage(file="icons/record_w.png")
+        options["image"]= image_icon
+        options["width"] = 30
+        options["height"] = 30
+    elif type == "play":
+        image_icon = ImageTk.PhotoImage(file="icons/play_w.png")
+        options["image"]= image_icon
+        options["width"] = 30
+        options["height"] = 30
+    else:
+        options["text"] = text
+
+    images_icons.append(image_icon)
+    return Button(widget,**options)
 
 btn_choose_screen = create_button(btn_choose_frame, "choose", "choose screen", "gray", "white", "red", choose_screen)
 btn_choose_screen.grid(row=0, column=0, sticky="e", padx=10)
+
 btn_choose_screen.bind("<Enter>" , lambda e,color="red": on_hover(e,color))
 btn_choose_screen.bind("<Leave>", lambda e,color="gray": on_leave(e,color))
 
@@ -512,17 +470,11 @@ btn_start_recording = create_button(btn_action_frame, "start", "start", "gray", 
 btn_start_recording.bind("<Enter>",  lambda e,color="red": on_hover(e,color))
 btn_start_recording.bind("<Leave>", lambda e,color="gray": on_leave(e,color))
 btn_start_recording.grid(row=0, column=0)
-# btn_start_recording.place(relx=0, rely=0.5, anchor=W)
 
 btn_stop_recording = create_button(btn_action_frame, "stop", "stop", "gray", "white", "red", stop_recording)
 btn_stop_recording.bind("<Enter>",  lambda e,color="red": on_hover(e,color))
 btn_stop_recording.bind("<Leave>", lambda e,color="gray": on_leave(e,color))
-# btn_stop_recording.place(relx=0.3, rely=0.5, anchor=W)
 btn_stop_recording.grid(row=0, column=1)
 
-
-master.attributes('-topmost',True)
-# master.configure(bg='#1b1f2a')
-# master.wm_attributes('-transparentcolor', master["bg"])
-# master.wm_attributes("-transparentcolor", "red")
+# master.attributes('-topmost',True)
 mainloop()
