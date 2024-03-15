@@ -8,6 +8,66 @@ import threading
 from tkinter.filedialog import asksaveasfile
 
 
+def round_rectangle(canvas, x1, y1, x2, y2, radius=25, **kwargs):
+    points = [x1 + radius, y1,
+              x1 + radius, y1,
+              x2 - radius, y1,
+              x2 - radius, y1,
+              x2, y1,
+              x2, y1 + radius,
+              x2, y1 + radius,
+              x2, y2 - radius,
+              x2, y2 - radius,
+              x2, y2,
+              x2 - radius, y2,
+              x2 - radius, y2,
+              x1 + radius, y2,
+              x1 + radius, y2,
+              x1, y2,
+              x1, y2 - radius,
+              x1, y2 - radius,
+              x1, y1 + radius,
+              x1, y1 + radius,
+              x1, y1]
+
+    return canvas.create_polygon(points, **kwargs, smooth=True)
+
+
+class theme:
+    default ="orange"
+    hover = "blue"
+    success = "green"
+    error = "red"
+    warning = "orange"
+    primary = "purple"
+    secondray = "gray"
+    active = "blue"
+    white = "white"
+
+def create_rounded_rectangle(canvas, x1, y1, x2, y2, radius, **kwargs):
+    points = [x1 + radius, y1,
+              x1 + radius, y1,
+              x2 - radius, y1,
+              x2 - radius, y1,
+              x2, y1,
+              x2, y1 + radius,
+              x2, y1 + radius,
+              x2, y2 - radius,
+              x2, y2 - radius,
+              x2, y2,
+              x2 - radius, y2,
+              x2 - radius, y2,
+              x1 + radius, y2,
+              x1 + radius, y2,
+              x1, y2,
+              x1, y2 - radius,
+              x1, y2 - radius,
+              x1, y1 + radius,
+              x1, y1 + radius,
+              x1, y1]
+    canvas.create_polygon(points, **kwargs, smooth=True)
+
+
 ctypes.windll.user32.SetProcessDPIAware()
 
 global start_record, flag, screen_number
@@ -36,35 +96,43 @@ canvas_width = width - gap
 
 toggle_screens_to_choose = False
 
-start, end = 0 ,width
+start, end = 0,0
 
 ## create navbar  float
 master.geometry("%dx%d+%d+%d" % (width, height, (master.winfo_screenwidth() / 2) - (width / 2), 0))
-master.configure(bg="skyblue")
+master.configure(bg="#1b1f2a", bd=0)
 master.overrideredirect(True)
 master.rowconfigure(0, weight=1)
 master.rowconfigure(1, weight=1)
 master.columnconfigure(0, weight=1)
+canvas_bg = Canvas(master, width=width, height=height, bd=0)
+canvas_bg.grid(row=0, column=0,padx=0, pady=0,)
+# create_rounded_rectangle(canvas_bg, 0, 0, width,height, 0, fill="#1b1f2a")
+canvas_bg.create_rectangle(0,0,width,height ,fill="#1b1f2a")
 
-left_frame = Frame(master, width=canvas_width, height = height - 20, bg="white", bd=0.5)
-left_frame.grid(row=0, column=0, padx=10, pady=10)
+left_frame = Frame(master, width=canvas_width, height = height , bg="#1b1f2a", bd=0 )
+left_frame.grid(row=0, column=0, sticky="nswe")
 left_frame.rowconfigure(0, weight=1)
 left_frame.columnconfigure(0, weight=1)
 left_frame.columnconfigure(1, weight=1)
-left_frame.columnconfigure(2, weight=1)
-
 
 left_frame.grid_propagate(False)
-btn_action_frame = Frame(left_frame)
-btn_action_frame.grid(row=0, column=0, sticky="nswe")
+btn_action_frame = Frame(left_frame, bg="#1b1f2a", bd=0, height = height, width=100 )
+btn_action_frame.grid(row=0, column=0,padx=0,sticky="w", pady=0)
 btn_action_frame.rowconfigure(0, weight=1)
 btn_action_frame.columnconfigure(0, weight=1)
-btn_action_frame.columnconfigure(1, weight=1)
+# btn_action_frame.columnconfigure(1, weight=1)
 btn_action_frame.grid_propagate(False)
+
+
+btn_choose_frame = Frame(left_frame, bg="#1b1f2a", bd=0, height = height, width=150)
+btn_choose_frame.grid(row=0, column=1, sticky="e",padx=0, pady=0)
+btn_choose_frame.rowconfigure(0, weight=1)
+btn_choose_frame.columnconfigure(0, weight=1)
+btn_choose_frame.grid_propagate(False)
 
 frame_prev_width = 0
 frame_prev_height = 0
-
 
 with mss.mss() as sct:
     screens = sct.monitors[1:]
@@ -131,7 +199,7 @@ def choose_screen():
         master.geometry("%dx%d+%d+%d" % (width, height + 150, (master.winfo_screenwidth() / 2) - (width / 2), 1))
         w = 150
 
-        frame_photo_1 = Frame(master, width =width, height=150, bg="yellow")
+        frame_photo_1 = Frame(master, width =width, height=150, bg="#1b1f2a")
         frame_photo_1.grid(row=1, column=0)
         images = []
         for _ in screens:
@@ -163,13 +231,16 @@ def close_toggle_choose_screens():
 result_times = []
 
 def turn_px_to_fr(px, frame_len):
-    global canvas_width, result_times
+    global canvas_width, result_times,pps
     fps = 10
+    print("canvas_width", meduim_screen)
+    pps = meduim_screen / fps
     sec = frame_len / fps
-    time_in_sec = px * (sec / canvas_width)
-
+    time_in_sec = px * (sec / meduim_screen)
+    print(round(px / pps), frame_len)
     class res:
-        fr = round(fps / (1 / time_in_sec))
+        global pps
+        fr = round(fps / (1/time_in_sec))
         time = time_in_sec
 
     result_times.append(res)
@@ -202,62 +273,97 @@ def init_edit_frame():
     frame_prev_width = width - 20
     frame_prev_height = int(frames[0].height / (frames[0].width / (width - 20)))
     toggle_screens_to_choose = True
-    master.geometry("%dx%d+%d+%d" % (frame_prev_width, height + frame_prev_height + 150, (master.winfo_screenwidth()/2)-(width /2), 1))
-    frame_edit = Frame(master, width =width , height=height + frame_prev_height + 100, bg="yellow")
+    master.geometry("%dx%d+%d+%d" % (frame_prev_width, height + frame_prev_height + 160, (master.winfo_screenwidth()/2)-(width /2), 1))
+    frame_edit = Frame(master, width =width , height=height + frame_prev_height + 100, bg="#1b1f2a", )
     frame_edit.columnconfigure(0,weight=1)
     frame_edit.rowconfigure(0,weight=1)
     frame_edit.rowconfigure(1,weight=1)
     frame_edit.rowconfigure(2,weight=1)
-    frame_edit.grid(row=1, column=0)
+    frame_edit.grid(row=1, column=0, sticky="nswe")
     frame_edit.grid_propagate(False)
 
-    top_frame = Frame(frame_edit, width=width , height=50, bg="blue")
-    top_frame.grid(row=0, column=0)
+    top_frame = Frame(frame_edit, width=width , height=30, bg="#1b1f2a")
+    top_frame.grid(row=1, column=0, sticky="nswe", padx=20)
     top_frame.columnconfigure(0, weight=1)
     top_frame.columnconfigure(1, weight=1)
-    top_frame.columnconfigure(2, weight=1)
+    # top_frame.columnconfigure(2, weight=1)
     top_frame.rowconfigure(0, weight=1)
     top_frame.grid_propagate(False)
 
-    button_prev_actions = Frame(top_frame)
+    button_prev_actions = Frame(top_frame, bg="#1b1f2a" )
     button_prev_actions.grid(row=0, column=0, sticky="nswe")
     button_prev_actions.rowconfigure(0,weight=1)
     button_prev_actions.columnconfigure(0,weight=1)
     button_prev_actions.columnconfigure(1,weight=1)
     button_prev_actions.grid_propagate(False)
 
-    button_play = Button(button_prev_actions, text="play", command=start_video_btn)
-    button_play.grid(row=0, column=0)
-    button_stop = Button(button_prev_actions, text="stop", command=stop_video_ref)
-    button_stop.grid(row=0, column=1)
+    # button_play = Button(button_prev_actions, text="play", command=start_video_btn)
+    # button_play.grid(row=0, column=0)
+    #
+    button_play = create_button(button_prev_actions, "play", "play", "gray", "white", "red",start_video_btn)
+    button_play.place(relx=0.15, rely=0.5, anchor=W)
+    button_play.bind("<Enter>", lambda e, color="red": on_hover(e, color))
+    button_play.bind("<Leave>", lambda e, color="gray": on_leave(e, color))
 
-    button_save = Button(top_frame, text="save", command=save_file)
-    button_save.grid(row=0, column=2)
+    button_stop = create_button(button_prev_actions, "stop", "stop", "gray", "white", "red",stop_video_ref)
+    button_stop.place(relx=0.0, rely=0.5, anchor=W)
+    button_stop.bind("<Enter>", lambda e, color="red": on_hover(e, color))
+    button_stop.bind("<Leave>", lambda e, color="gray": on_leave(e, color))
 
+    button_save = create_button(top_frame, "save", "save", "gray", "white", "red", save_file)
+    button_save.grid(row=0, column=1,  padx=10, )
+    button_save.bind("<Enter>", lambda e, color="red": on_hover(e, color))
+    button_save.bind("<Leave>", lambda e, color="gray": on_leave(e, color))
 
-    middle_frame = Frame(frame_edit, width=frame_prev_width, height=frame_prev_height, bg="cyan")
-    middle_frame.grid(row=1, column=0)
+    middle_frame = Frame(frame_edit, width=frame_prev_width, height=frame_prev_height, bg="#1b1f2a")
+    middle_frame.grid(row=0, column=0, pady=10, padx=10)
     middle_frame.rowconfigure(0, weight=1)
     middle_frame.columnconfigure(0, weight=1)
     middle_frame.grid_propagate(False)
 
-    bottom_frame = Frame(frame_edit, width=width, height=50, bg="blue")
-    bottom_frame.grid(row=2,column=0)
+    bottom_frame = Frame(frame_edit, width=width, height=54, bg="#1b1f2a", bd=0)
+    bottom_frame.grid(row=2,column=0, sticky="nswe", pady=20, padx=20)
+    bottom_frame.columnconfigure(0, weight=1)
+    bottom_frame.rowconfigure(0, weight=1)
     bottom_frame.grid_propagate(False)
 
 
-    video_out_put_label = Label(middle_frame, width=frame_prev_width, height=frame_prev_height, bg="purple" )
+    video_out_put_label = Label(middle_frame, width=frame_prev_width, height=frame_prev_height, bg="white" )
     video_out_put_label.grid(row=0, column=0)
     video_out_put_label.columnconfigure(1,weight=1)
     video_out_put_label.rowconfigure(1,weight=1)
     video_out_put_label.grid_propagate(False)
 
 
-    C = Canvas(bottom_frame, bg="green", width=width -20, height=50-20)
-    C.pack()
+    C = Canvas(bottom_frame, bg="#1b1f2a", width=width-40, height=100, bd=0,  highlightthickness=0)
+    C.grid(row=0, column=0, sticky="nswe")
 
-    bar = C.create_rectangle(50,0,width - 20, 50-20, fill="red")
-    handle = C.create_rectangle(0,0,10, 50-20, fill="blue")
+    C.create_rectangle(0,30,width - 60, 100, fill="black")
+    C.create_rectangle(0,0,width - 60, 20, fill="black")
+    # how much frame in px
+    point = round((width -40) / (len(frames)/ 10))
+
+    print(point, canvas_width)
+    index = 0
+    for _ in range(round(len(frames)/10)):
+
+        sec = len(frames) / 10
+        time_in_sec = round((point * index) * (sec / (width- 40)))
+        print(round(time_in_sec))
+        def preapre_time(time):
+            str = ''
+            if time < 10:
+                str = f'0{time}:00'
+            else:
+                str = f'{time}:00'
+            return str
+        C.create_rectangle(point * index, 0,(point * index) + 5, 20 , fill="#464646")
+        C.create_text((point * index) + 5 + (point /2) ,  20/2 ,width=100, fill="#464646",text=preapre_time(time_in_sec))
+        index += 1
+
+    # bar  = round_rectangle(C, 50,30,width - 60, 100,50, fill="orange")
+    bar = C.create_rectangle(50,30,width - 60, 100, fill="red")
+    handle = C.create_rectangle(0,0,5, 100, fill="white")
 
     side =""
     x1 = 0
@@ -284,15 +390,17 @@ def init_edit_frame():
             side = ""
 
     def on_move(e):
-        global drag_trim, x1, x2 ,side, rs,count_frame_prev,photo_prev_1,images_prev
+        global drag_trim, x1, x2 ,side, rs,count_frame_prev,photo_prev_1,images_prev, frames
         bar_position = C.coords(bar)
         bar_x1 = bar_position[0]
+        bar_y1 = bar_position[1]
         bar_x2 = bar_position[2]
-        bar_y2 = bar_position[2]
+        bar_y2 = bar_position[3]
         if drag_trim and rs > 0:
-            C.coords(handle, e.x - rs, 0, (e.x - rs) + 10,50-20)
+            C.coords(handle, e.x - rs, 0, (e.x - rs) + 10,bar_y2)
             frame_choose = turn_px_to_fr(e.x, len(frames))
             count_frame_prev = int(frame_choose.fr)
+            print("===>>>",count_frame_prev)
             frame_resize = frames[count_frame_prev].resize(
                 (width - 20, int(frames[count_frame_prev].height / (frames[count_frame_prev].width / (width - 20)))))
             photo_prev_1 = ImageTk.PhotoImage(frame_resize)
@@ -302,7 +410,7 @@ def init_edit_frame():
             return
         if drag_trim:
             if side == "start":
-                C.coords(bar, e.x, 0, bar_x2, bar_y2)
+                C.coords(bar, e.x, bar_y1, bar_x2, bar_y2)
                 frame_choose = turn_px_to_fr(e.x, len(frames))
                 count_frame_prev = int(frame_choose.fr)
                 frame_resize = frames[count_frame_prev].resize((width - 20, int(frames[count_frame_prev].height / (frames[count_frame_prev].width / (width - 20)))))
@@ -311,7 +419,7 @@ def init_edit_frame():
                 photo_prev_1_label.grid(row=0, column=0)
                 images_prev.append(photo_prev_1)
             elif side == "end":
-                C.coords(bar, bar_x1, 0, e.x, bar_y2)
+                C.coords(bar, bar_x1, bar_y1, e.x, bar_y2)
                 frame_choose = turn_px_to_fr(e.x, len(frames))
                 count_frame_prev = int(frame_choose.fr)
                 frame_resize = frames[count_frame_prev].resize((width - 20, int(
@@ -322,13 +430,14 @@ def init_edit_frame():
                 images_prev.append(photo_prev_1)
 
     def on_release(e):
-        global drag_trim, frames, start, end
+        global drag_trim, frames, start, end,rs
         drag_trim = False
         bar_position = C.coords(bar)
         bar_x1 = bar_position[0]
         bar_x2 = bar_position[2]
         start = turn_px_to_fr(bar_x1, len(frames)).fr
         end = turn_px_to_fr(bar_x2, len(frames)).fr
+        rs = 0
 
     C.bind("<Button-1>", on_press)
     C.bind("<ButtonRelease-1>", on_release)
@@ -348,7 +457,7 @@ def start_video_ref():
 
         if count_frame_prev == len(frames):
             count_frame_prev = 0
-            C.coords(handle, 0,0,10,50-20)
+            C.coords(handle, 0,0,5,100)
         else:
             C.move(handle, width / (len(frames) / 10) / 10  , 0)
         time.sleep(1/10)
@@ -382,21 +491,38 @@ def save_file():
         loop=0)
     print("stop recording ...")
 
+
+def on_hover(event, color):
+    event.widget.configure(bg=color)
+
+def on_leave(event,color):
+    event.widget.configure(bg=color)
+
+def create_button(widget , type, text, bg, fg, active, command):
+
+    return Button(widget, cursor="hand2",padx=5, command=command ,text=text, font = ("", 10),borderwidth = 2,bd = 0, bg=bg, fg=fg, activeforeground=fg, activebackground=active)
 # create buttons
-btn_choose_screen = Button(left_frame, text="choose screen", command=choose_screen)
-# btn_choose_screen.place(relx=1, rely=0.5, anchor=E)
-btn_choose_screen.grid(row=0, column=2, sticky="nswe")
 
-btn_start_recording = Button(btn_action_frame, text="start", command=start_recording)
+btn_choose_screen = create_button(btn_choose_frame, "choose", "choose screen", "gray", "white", "red", choose_screen)
+btn_choose_screen.grid(row=0, column=0, sticky="e", padx=10)
+btn_choose_screen.bind("<Enter>" , lambda e,color="red": on_hover(e,color))
+btn_choose_screen.bind("<Leave>", lambda e,color="gray": on_leave(e,color))
+
+btn_start_recording = create_button(btn_action_frame, "start", "start", "gray", "white", "red", start_recording)
+btn_start_recording.bind("<Enter>",  lambda e,color="red": on_hover(e,color))
+btn_start_recording.bind("<Leave>", lambda e,color="gray": on_leave(e,color))
+btn_start_recording.grid(row=0, column=0)
 # btn_start_recording.place(relx=0, rely=0.5, anchor=W)
-btn_start_recording.grid(row=0,column=0)
 
-btn_stop_recording = Button(btn_action_frame, text="stop", command=stop_recording)
-# btn_stop_recording.place(relx=0.2, rely=0.5, anchor=CENTER)
+btn_stop_recording = create_button(btn_action_frame, "stop", "stop", "gray", "white", "red", stop_recording)
+btn_stop_recording.bind("<Enter>",  lambda e,color="red": on_hover(e,color))
+btn_stop_recording.bind("<Leave>", lambda e,color="gray": on_leave(e,color))
+# btn_stop_recording.place(relx=0.3, rely=0.5, anchor=W)
 btn_stop_recording.grid(row=0, column=1)
-# root.wm_attributes("-transparent", True)
-# Set the root window background color to a transparent color
-# root.config(bg='systemTransparent')
-master.attributes('-topmost',True)
 
+
+master.attributes('-topmost',True)
+# master.configure(bg='#1b1f2a')
+# master.wm_attributes('-transparentcolor', master["bg"])
+# master.wm_attributes("-transparentcolor", "red")
 mainloop()
