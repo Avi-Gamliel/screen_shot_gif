@@ -1,11 +1,16 @@
+from itertools import count
 from tkinter import *
 from PIL import Image, ImageTk
 import time
 import win32gui
+import numpy as np
+import imageio
 import ctypes
 import mss.tools
 import threading
 from tkinter.filedialog import asksaveasfile
+from create_video import convert_png_to_mov
+import keyboard
 
 class theme:
     default ="orange"
@@ -38,8 +43,9 @@ start=0
 end = 0
 frame_prev_width = 0
 frame_prev_height = 0
-
-
+in_out_play = False
+bar = None
+start_px = 0
 im_cursor = Image.open('arrow.png')
 
 ctypes.windll.user32.SetProcessDPIAware()
@@ -54,7 +60,7 @@ with mss.mss() as sct:
 
 master.geometry("%dx%d+%d+%d" % (width, height, (master.winfo_screenwidth() / 2) - (width / 2), 0))
 master.configure(bg="#1b1f2a", bd=0)
-master.overrideredirect(True)
+# master.overrideredirect(True)
 
 master.rowconfigure(0, weight=1)
 master.rowconfigure(1, weight=1)
@@ -96,6 +102,7 @@ def record_screen():
         time.sleep((1000/16)/1000)
         print("ok")
     else:
+        end = len(frames)
         play_result()
 
 def start_recording():
@@ -135,7 +142,11 @@ def stop_recording():
 
 def choose_screen():
     global frame_photo_1
-    global toggle_screens_to_choose,left_frame, images, screen_number
+    global toggle_screens_to_choose,left_frame, images, screen_number, start_time_ref
+    if start_time_ref == True:
+        close_toggle_output_edit()
+        start_time_ref = False
+
     i = 0
     if (toggle_screens_to_choose == False):
         toggle_screens_to_choose = True
@@ -162,7 +173,9 @@ def choose_screen():
             if i <= 1:
                 i += 1
     else:
-        close_toggle_choose_screens()
+        if start_time_ref == True:
+            close_toggle_choose_screens()
+            start_time_ref = False
 
 def close_toggle_choose_screens():
     global toggle_screens_to_choose, frame_photo_1
@@ -170,14 +183,26 @@ def close_toggle_choose_screens():
     master.geometry("%dx%d+%d+%d" % (width, height, (master.winfo_screenwidth()/2) - (width/2), 0))
     frame_photo_1.grid_forget()
 
+def close_toggle_output_edit():
+    global  frame_edit,start_time_ref, width
+    width = 400
+    master.geometry("%dx%d+%d+%d" % (width, height, (master.winfo_screenwidth()/2) - (width/2), 0))
+    # stop_video_ref()
+    count_frame_prev = 0
+    start_time_ref = False
+    frame_edit.grid_forget()
+
+
+    # .grid_forget()
+
 def turn_px_to_fr(px, frame_len):
     global canvas_width, result_times,pps
     fps = 10
-    print("canvas_width", meduim_screen)
+    # print("canvas_width", meduim_screen)
     pps = meduim_screen / fps
     sec = frame_len / fps
     time_in_sec = px * (sec / meduim_screen)
-    print(round(px / pps), frame_len)
+    # print(round(px / pps), frame_len)
     class res:
         global pps
         fr = round(fps / (1/time_in_sec))
@@ -191,19 +216,17 @@ def turn_fr_to_px(fr, frames_len):
     global canvas_width, result_times, px
     fps = 10
     sec = frames_len / fps
-    px = fr * (canvas_width / sec)
-
+    print(fr * (width / sec))
     class res:
-        global px
-        px = round(px)
+        px = round(fr * (width / sec))
     return res
 
 def play_result():
-    global frames, video_out_put_label, images_prev, photo_prev_1, width_prev_1_label
+    global frames, bar, video_out_put_label, images_prev, photo_prev_1, width_prev_1_label
     start_video_ref()
 
 def init_edit_frame():
-    global toggle_screens_to_choose, side, frames, video_out_put_label, handle, C,frame_prev_height,frame_prev_width, width
+    global toggle_screens_to_choose, side, frames, video_out_put_label, handle, C,frame_prev_height,frame_prev_width, width,top_frame,frame_edit
     if len(frames) == 0 :
         print(" there is no frame")
     width = meduim_screen
@@ -233,13 +256,23 @@ def init_edit_frame():
     button_prev_actions.columnconfigure(1,weight=1)
     button_prev_actions.grid_propagate(False)
 
-    button_play = create_button(button_prev_actions, "play", "play", "gray", "white", "red",start_video_btn)
-    button_play.place(relx=0.15, rely=0.5, anchor=W)
+    button_play = create_button(button_prev_actions, "in and out", "in and out", "gray", "white", "red",play_in_out_only)
+    button_play.place(relx=0.45, rely=0.5, anchor=W)
     button_play.bind("<Enter>", lambda e, color="red": on_hover(e, color))
     button_play.bind("<Leave>", lambda e, color="gray": on_leave(e, color))
 
-    button_stop = create_button(button_prev_actions, "stop", "stop", "gray", "white", "red",stop_video_ref)
+    button_play = create_button(button_prev_actions, "play", "play", "gray", "white", "red",start_video_btn)
+    button_play.place(relx=0.30, rely=0.5, anchor=W)
+    button_play.bind("<Enter>", lambda e, color="red": on_hover(e, color))
+    button_play.bind("<Leave>", lambda e, color="gray": on_leave(e, color))
+
+    button_stop = create_button(button_prev_actions, "pause", "pause", "gray", "white", "red",pause_video_ref)
     button_stop.place(relx=0.0, rely=0.5, anchor=W)
+    button_stop.bind("<Enter>", lambda e, color="red": on_hover(e, color))
+    button_stop.bind("<Leave>", lambda e, color="gray": on_leave(e, color))
+
+    button_stop = create_button(button_prev_actions, "stop", "stop", "gray", "white", "red", stop_video_ref)
+    button_stop.place(relx=0.15, rely=0.5, anchor=W)
     button_stop.bind("<Enter>", lambda e, color="red": on_hover(e, color))
     button_stop.bind("<Leave>", lambda e, color="gray": on_leave(e, color))
 
@@ -290,6 +323,11 @@ def init_edit_frame():
         index += 1
 
     bar = C.create_rectangle(50,30,width - 60, 100, fill="red")
+    bar_start_handle = C.create_rectangle(50,30,60, 100, fill="white")
+    bar_end_handle = C.create_rectangle(width - 70,30,(width - 70) +10, 100, fill="white")
+
+
+
     handle = C.create_rectangle(0,0,5, 100, fill="white")
 
     side =""
@@ -297,13 +335,14 @@ def init_edit_frame():
     x2 = 0
 
     def on_press(e):
-        global drag_trim, x1, x2, side, rs
+        global drag_trim, x1, x2, side, rs, rs_bar
         drag_trim = True
         bar_position = C.coords(bar)
         bar_x1 = bar_position[0]
         bar_x2 = bar_position[2]
         handle_pos = C.coords(handle)
         rs = 0
+        rs_bar = 0
         if handle_pos[0] < e.x  and handle_pos[2] > e.x:
             rs = e.x - handle_pos[0]
             return
@@ -311,11 +350,14 @@ def init_edit_frame():
             side = "start"
         elif bar_x2 -10 < e.x and bar_x2 +10 > e.x:
             side = "end"
+        elif bar_x2 - 10 > e.x and bar_x1 +10 < e.x:
+            side = "center"
+            rs_bar = e.x -bar_x1
         else:
             side = ""
 
     def on_move(e):
-        global drag_trim, x1, x2 ,side, rs,count_frame_prev,photo_prev_1,images_prev, frames
+        global drag_trim, x1, x2 ,side, rs,count_frame_prev,photo_prev_1,images_prev, frames,rs_bar
         bar_position = C.coords(bar)
         bar_x1 = bar_position[0]
         bar_y1 = bar_position[1]
@@ -323,6 +365,7 @@ def init_edit_frame():
         bar_y2 = bar_position[3]
         if drag_trim and rs > 0:
             C.coords(handle, e.x - rs, 0, (e.x - rs) + 10,bar_y2)
+
             frame_choose = turn_px_to_fr(e.x, len(frames))
             count_frame_prev = int(frame_choose.fr)
             frame_resize = frames[count_frame_prev].resize(
@@ -332,9 +375,12 @@ def init_edit_frame():
             photo_prev_1_label.grid(row=0, column=0)
             images_prev.append(photo_prev_1)
             return
+
         if drag_trim:
             if side == "start":
                 C.coords(bar, e.x, bar_y1, bar_x2, bar_y2)
+                C.coords(bar_start_handle, e.x, bar_y1, e.x + 10, bar_y2)
+
                 frame_choose = turn_px_to_fr(e.x, len(frames))
                 count_frame_prev = int(frame_choose.fr)
                 frame_resize = frames[count_frame_prev].resize((width - 20, int(frames[count_frame_prev].height / (frames[count_frame_prev].width / (width - 20)))))
@@ -344,6 +390,8 @@ def init_edit_frame():
                 images_prev.append(photo_prev_1)
             elif side == "end":
                 C.coords(bar, bar_x1, bar_y1, e.x, bar_y2)
+                C.coords(bar_end_handle,e.x -10, bar_y1,e.x, bar_y2)
+
                 frame_choose = turn_px_to_fr(e.x, len(frames))
                 count_frame_prev = int(frame_choose.fr)
                 frame_resize = frames[count_frame_prev].resize((width - 20, int(
@@ -352,63 +400,126 @@ def init_edit_frame():
                 photo_prev_1_label = Label(video_out_put_label, image=photo_prev_1)
                 photo_prev_1_label.grid(row=0, column=0)
                 images_prev.append(photo_prev_1)
+            elif side == "center":
+                # rs
+                C.coords(bar, e.x - rs_bar, bar_y1, (e.x - rs_bar)+ bar_x2 - bar_x1, bar_y2)
+                C.coords(bar_start_handle, e.x - rs_bar, bar_y1, (e.x - rs_bar) + 10, bar_y2)
+                C.coords(bar_end_handle,(e.x - rs_bar)+ bar_x2 - bar_x1, bar_y1,((e.x - rs_bar)+ bar_x2 - bar_x1)+10, bar_y2)
 
     def on_release(e):
-        global drag_trim, frames, start, end,rs
+        global drag_trim, frames, start, end,rs,rs_bar, start_px
         drag_trim = False
         bar_position = C.coords(bar)
         bar_x1 = bar_position[0]
         bar_x2 = bar_position[2]
         start = turn_px_to_fr(bar_x1, len(frames)).fr
+        start_px = bar_x1
         end = turn_px_to_fr(bar_x2, len(frames)).fr
+
+        print("start",start)
+        print("end",end)
         rs = 0
+        rs_bar = 0
+
 
     C.bind("<Button-1>", on_press)
     C.bind("<ButtonRelease-1>", on_release)
     C.bind("<B1-Motion>", on_move)
 
 def start_video_ref():
-    global start_time_ref, count_frame_prev, video_out_put_label, frames, C
+    global start_time_ref, count_frame_prev, video_out_put_label, frames, C,start, end, in_out_play, length
     start_time_ref = True
+    length = 0
     while start_time_ref:
+        print(start, end, len(frames[start:end+1]), count_frame_prev)
 
-        frame_resize = frames[count_frame_prev].resize((width - 20, int(frames[count_frame_prev].height / (frames[count_frame_prev].width /(width-20)))))
+        if in_out_play == True:
+            length = len(frames[start:end+1])
+            frame_resize = frames[start:end+1][count_frame_prev].resize((width - 20, int(frames[count_frame_prev].height / (frames[count_frame_prev].width /(width-20)))))
+        else:
+            length = len(frames)
+            frame_resize = frames[count_frame_prev].resize((width - 20, int(frames[count_frame_prev].height / (frames[count_frame_prev].width /(width-20)))))
+
         photo_prev_1 = ImageTk.PhotoImage(frame_resize)
         photo_prev_1_label = Label(video_out_put_label, image=photo_prev_1)
         photo_prev_1_label.grid(row=0, column=0)
         images_prev.append(photo_prev_1)
         count_frame_prev += 1
 
-        if count_frame_prev == len(frames):
+        if count_frame_prev == length:
             count_frame_prev = 0
-            C.coords(handle, 0,0,5,100)
+            start_pos = 0
+            if in_out_play:
+                start_pos = start_px
+            else:
+                start_pos = 0
+            C.coords(handle, start_pos,0,start_pos + 5,100)
         else:
             C.move(handle, width / (len(frames) / 10) / 10  , 0)
         time.sleep(1/10)
 
-def stop_video_ref():
+def pause_video_ref():
     global start_time_ref
     start_time_ref = False
+
+def stop_video_ref():
+    global start_time_ref, count_frame_prev
+    ## reset the counter frame
+    count_frame_prev = 0
+    ## stop the video
+    start_time_ref = False
+    ## reset the handle
+    C.coords(handle, 0, 0, 5, 100)
+
+def play_in_out_only():
+    global in_out_play, count_frame_prev,bar, start_px
+    C.coords(handle, start_px, 0, start_px+ 5, 100)
+    count_frame_prev = 0
+    in_out_play = True
+    return
+
 
 def start_video_btn():
     threading.Thread(target=start_video_ref, args=()).start()
 
 def save_file():
-    global start, end
-    print(start, end)
+    global start, end,final_images,string,paths
     files = (
         ("Gif File", "*.gif"),
         ("All files", "*.")
     )
     filenames = asksaveasfile(filetypes=files, defaultextension="*.gif")
     our_path = str(filenames.name)
-    frames[int(start)].save(
-        our_path,
-        save_all=True,
-        append_images=frames[int(start)+1:int(end)],
-        optimize=False,
-        duration=int(1000 / 100),
-        loop=0)
+    paths = []
+    index = 0
+    for frame in frames:
+        string = ''
+
+        # im = Image.open(photo_prev_1).convert("RGB")
+        if index <10:
+            string = f'00{index}'
+        elif index <100:
+            string = f'0{index}'
+        elif index <1000:
+            string = f'{index}'
+
+        frame.save(f"tmp/image_{string}.png")
+        paths.append(f"tmp/image_{string}.png")
+        index += 1
+    path = f"{__file__[:-7]}tmp\\"
+    convert_png_to_mov(path,"movie.mov", paths)
+    final_images = []
+    # for frame in len(frames):
+    #     photo_prev_1 = ImageTk.PhotoImage(frame)
+    # write_mov(images,our_path, 10)
+
+    # frames[int(start)].save(
+    #     our_path,
+    #     save_all=True,
+    #     append_images=frames[int(start)+1:int(end)],
+    #     optimize=False,
+    #     duration=int(1000 / 100),
+    #     loop=0)
     print("stop recording ...")
 
 def on_hover(event, color):
@@ -454,6 +565,11 @@ def create_button(widget , type, text, bg, fg, active, command):
         options["image"]= image_icon
         options["width"] = 30
         options["height"] = 30
+    elif type == 'pause':
+        image_icon = ImageTk.PhotoImage(file="icons/pause_w.png")
+        options["image"] = image_icon
+        options["width"] = 30
+        options["height"] = 30
     else:
         options["text"] = text
 
@@ -475,6 +591,8 @@ btn_stop_recording = create_button(btn_action_frame, "stop", "stop", "gray", "wh
 btn_stop_recording.bind("<Enter>",  lambda e,color="red": on_hover(e,color))
 btn_stop_recording.bind("<Leave>", lambda e,color="gray": on_leave(e,color))
 btn_stop_recording.grid(row=0, column=1)
+
+## add listener keyboard
 
 # master.attributes('-topmost',True)
 mainloop()
